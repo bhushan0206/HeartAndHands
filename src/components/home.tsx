@@ -16,11 +16,21 @@ import PortfolioGallery from "./PortfolioGallery";
 import ProductGrid from "./ProductGrid";
 import ProfileCard from "./ProfileCard";
 import { default as CartComponent } from "./ShoppingCart";
+import AdminPanel from "./AdminPanel";
+import NotificationSystem, { useNotifications } from "./NotificationSystem";
 
 const HomePage = () => {
   const [isCartOpen, setIsCartOpen] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState("all");
   const [cartItems, setCartItems] = React.useState([]);
+  const [isAdminPanelVisible, setIsAdminPanelVisible] = React.useState(false);
+  const {
+    notifications,
+    removeNotification,
+    showCartSuccess,
+    showAppointmentBooked,
+    showOrderConfirmed,
+  } = useNotifications();
 
   const handleAddToCart = (product) => {
     setCartItems((prevItems) => {
@@ -32,19 +42,25 @@ const HomePage = () => {
             : item,
         );
       } else {
-        return [
-          ...prevItems,
-          {
-            id: product.id,
-            name: product.title,
-            price: product.price,
-            quantity: 1,
-            image: product.image,
-            creator: product.creator,
-            orderType: product.orderType,
-            paymentOptions: product.paymentOptions,
-          },
-        ];
+        const newItem = {
+          id: product.id,
+          name: product.title,
+          price: product.price,
+          quantity: 1,
+          image: product.image,
+          creator: product.creator,
+          orderType: product.orderType,
+          paymentOptions: product.paymentOptions,
+        };
+
+        // Show notification based on order type
+        if (product.orderType === "appointment") {
+          showAppointmentBooked(product.title, "Available dates");
+        } else {
+          showCartSuccess(product.title);
+        }
+
+        return [...prevItems, newItem];
       }
     });
   };
@@ -61,10 +77,14 @@ const HomePage = () => {
 
   const handleCheckout = () => {
     console.log("Proceeding to checkout with items:", cartItems);
-    // Here you would integrate with Stripe/PayPal
-    alert(
-      "Checkout functionality will be implemented with payment integration",
-    );
+    // Generate mock order number
+    const orderNumber = `ORD-${Date.now().toString().slice(-6)}`;
+    showOrderConfirmed(orderNumber);
+    // Clear cart after successful checkout
+    setTimeout(() => {
+      setCartItems([]);
+      setIsCartOpen(false);
+    }, 2000);
   };
 
   // Mock data for featured items
@@ -173,30 +193,57 @@ const HomePage = () => {
               Creative Showcase
             </a>
             <nav className="hidden md:flex items-center gap-6">
-              <a href="#" className="text-sm font-medium hover:text-primary">
+              <a
+                href="#home"
+                className="text-sm font-medium hover:text-primary"
+              >
                 Home
               </a>
               <a
                 href="#portfolio"
                 className="text-sm font-medium hover:text-primary"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document
+                    .getElementById("portfolio")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
               >
                 Portfolio
               </a>
               <a
                 href="#shop"
                 className="text-sm font-medium hover:text-primary"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document
+                    .getElementById("shop")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
               >
                 Shop
               </a>
               <a
                 href="#about"
                 className="text-sm font-medium hover:text-primary"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document
+                    .getElementById("about")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
               >
                 About
               </a>
               <a
                 href="#contact"
                 className="text-sm font-medium hover:text-primary"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document
+                    .getElementById("contact")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
               >
                 Contact
               </a>
@@ -219,8 +266,13 @@ const HomePage = () => {
                 </span>
               )}
             </Button>
-            <Button variant="outline" size="sm" className="hidden md:flex">
-              Sign In
+            <Button
+              variant="outline"
+              size="sm"
+              className="hidden md:flex"
+              onClick={() => setIsAdminPanelVisible(true)}
+            >
+              Admin
             </Button>
             <Button variant="ghost" size="icon" className="md:hidden">
               <Menu className="h-5 w-5" />
@@ -230,7 +282,10 @@ const HomePage = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-background py-20">
+      <section
+        id="home"
+        className="relative overflow-hidden bg-background py-20"
+      >
         <div className="container px-4 md:px-6">
           <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 xl:grid-cols-2">
             <div className="flex flex-col justify-center space-y-4">
@@ -245,11 +300,27 @@ const HomePage = () => {
                 </p>
               </div>
               <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                <Button size="lg" className="gap-1">
+                <Button
+                  size="lg"
+                  className="gap-1"
+                  onClick={() => {
+                    document
+                      .getElementById("portfolio")
+                      ?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                >
                   Explore Portfolio
                   <ArrowRight className="h-4 w-4" />
                 </Button>
-                <Button size="lg" variant="outline">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => {
+                    document
+                      .getElementById("shop")
+                      ?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                >
                   Shop Creations
                 </Button>
               </div>
@@ -314,12 +385,6 @@ const HomePage = () => {
                     onClick={() => setActiveTab("painting")}
                   >
                     Painting
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="crafts"
-                    onClick={() => setActiveTab("crafts")}
-                  >
-                    Crafts
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -407,17 +472,20 @@ const HomePage = () => {
                   ]}
                 />
               </TabsContent>
-              <TabsContent value="crafts" className="mt-6">
-                <PortfolioGallery
-                  items={featuredPortfolioItems.filter(
-                    (item) => item.category === "crafts",
-                  )}
-                />
-              </TabsContent>
             </Tabs>
           </div>
           <div className="mt-10 flex justify-center">
-            <Button variant="outline" className="gap-1">
+            <Button
+              variant="outline"
+              className="gap-1"
+              onClick={() => {
+                setActiveTab("all");
+                // Scroll to top of portfolio section
+                document
+                  .getElementById("portfolio")
+                  ?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
               View All Works
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -446,7 +514,16 @@ const HomePage = () => {
             />
           </div>
           <div className="mt-10 flex justify-center">
-            <Button variant="outline" className="gap-1">
+            <Button
+              variant="outline"
+              className="gap-1"
+              onClick={() => {
+                // Scroll to top of shop section
+                document
+                  .getElementById("shop")
+                  ?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
               Browse All Products
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -491,10 +568,25 @@ const HomePage = () => {
                 </p>
               </div>
               <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                <Button size="lg" className="gap-1">
+                <Button
+                  size="lg"
+                  className="gap-1"
+                  onClick={() => {
+                    // Simple contact form submission simulation
+                    alert(
+                      "Contact form functionality will be implemented with backend integration",
+                    );
+                  }}
+                >
                   Send Message
                 </Button>
-                <Button size="lg" variant="outline">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => {
+                    alert("FAQ section will be added in future updates");
+                  }}
+                >
                   View FAQ
                 </Button>
               </div>
@@ -638,6 +730,18 @@ const HomePage = () => {
         onCheckout={handleCheckout}
         isOpen={isCartOpen}
         onOpenChange={setIsCartOpen}
+      />
+
+      {/* Admin Panel */}
+      <AdminPanel
+        isVisible={isAdminPanelVisible}
+        onToggle={() => setIsAdminPanelVisible(!isAdminPanelVisible)}
+      />
+
+      {/* Notification System */}
+      <NotificationSystem
+        notifications={notifications}
+        onRemove={removeNotification}
       />
     </div>
   );
